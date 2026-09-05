@@ -14,7 +14,92 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      activities: {
+        Row: {
+          age_max: number | null
+          age_min: number | null
+          category: string
+          city: string | null
+          created_at: string | null
+          description: string | null
+          entry_type: string
+          id: string
+          is_recurring: boolean | null
+          languages: string[] | null
+          latitude: number | null
+          longitude: number | null
+          name: string
+          price_info: string | null
+          schedule_info: string | null
+          source_name: string | null
+          source_url: string | null
+        }
+        Insert: {
+          age_max?: number | null
+          age_min?: number | null
+          category: string
+          city?: string | null
+          created_at?: string | null
+          description?: string | null
+          entry_type: string
+          id?: string
+          is_recurring?: boolean | null
+          languages?: string[] | null
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          price_info?: string | null
+          schedule_info?: string | null
+          source_name?: string | null
+          source_url?: string | null
+        }
+        Update: {
+          age_max?: number | null
+          age_min?: number | null
+          category?: string
+          city?: string | null
+          created_at?: string | null
+          description?: string | null
+          entry_type?: string
+          id?: string
+          is_recurring?: boolean | null
+          languages?: string[] | null
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          price_info?: string | null
+          schedule_info?: string | null
+          source_name?: string | null
+          source_url?: string | null
+        }
+        Relationships: []
+      }
+      interest: {
+        Row: {
+          activity_id: string
+          created_at: string | null
+          id: string
+        }
+        Insert: {
+          activity_id: string
+          created_at?: string | null
+          id?: string
+        }
+        Update: {
+          activity_id?: string
+          created_at?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interest_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
