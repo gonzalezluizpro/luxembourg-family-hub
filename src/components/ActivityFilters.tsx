@@ -1,4 +1,14 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { SlidersHorizontal } from "lucide-react";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 import {
   AGE_RANGES,
   CATEGORY_ICONS,
@@ -69,6 +79,14 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
+function CountLabel({ count }: { count: number }) {
+  return (
+    <p className="text-sm font-medium text-foreground">
+      {count} {count === 1 ? "atividade encontrada" : "atividades encontradas"}
+    </p>
+  );
+}
+
 export default function ActivityFilters({
   radius,
   onRadiusChange,
@@ -85,9 +103,15 @@ export default function ActivityFilters({
   count,
 }: Props) {
   const [query, setQuery] = useState("");
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const mobileTriggerRef = useRef<HTMLButtonElement>(null);
+  const drawerContentRef = useRef<HTMLDivElement>(null);
 
-  return (
-    <section className="space-y-3 border-b border-border bg-card px-4 py-3">
+  const activeFilterCount =
+    (radius !== null ? 1 : 0) + ages.length + categories.length + (when !== null ? 1 : 0);
+
+  const filterGroups = (
+    <>
       <Group title="Localização">
         <button
           type="button"
@@ -169,10 +193,71 @@ export default function ActivityFilters({
           </Chip>
         ))}
       </Group>
+    </>
+  );
 
-      <p className="text-sm font-medium text-foreground">
-        {count} {count === 1 ? "atividade encontrada" : "atividades encontradas"}
-      </p>
-    </section>
+  return (
+    <>
+      {/* Desktop / tablet: full filter bar, always expanded */}
+      <section className="hidden space-y-3 border-b border-border bg-card px-4 py-3 md:block">
+        {filterGroups}
+        <CountLabel count={count} />
+      </section>
+
+      {/* Mobile: compact bar that opens the filters as a bottom sheet */}
+      <div className="flex items-center justify-between gap-3 border-b border-border bg-card px-4 py-3 md:hidden">
+        <CountLabel count={count} />
+        <Drawer open={mobileOpen} onOpenChange={setMobileOpen}>
+          <DrawerTrigger asChild>
+            <button
+              ref={mobileTriggerRef}
+              type="button"
+              className="relative flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-sm font-medium"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              Filtros
+              {activeFilterCount > 0 && (
+                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+          </DrawerTrigger>
+          <DrawerContent
+            ref={drawerContentRef}
+            className="max-h-[85vh]"
+            onOpenAutoFocus={(event) => {
+              // vaul defaults to leaving focus on the trigger, which leaves it
+              // inside the now aria-hidden background once the sheet opens.
+              // Move it to the first focusable field in the sheet instead.
+              event.preventDefault();
+              const target = drawerContentRef.current?.querySelector<HTMLElement>(
+                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+              );
+              (target ?? drawerContentRef.current)?.focus();
+            }}
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              mobileTriggerRef.current?.focus();
+            }}
+          >
+            <DrawerHeader>
+              <DrawerTitle>Filtros</DrawerTitle>
+            </DrawerHeader>
+            <div className="space-y-4 overflow-y-auto px-4 pb-2">{filterGroups}</div>
+            <DrawerFooter>
+              <DrawerClose asChild>
+                <button
+                  type="button"
+                  className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                >
+                  Ver {count} {count === 1 ? "atividade" : "atividades"}
+                </button>
+              </DrawerClose>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
+      </div>
+    </>
   );
 }

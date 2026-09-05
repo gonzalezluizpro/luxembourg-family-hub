@@ -4,11 +4,89 @@ import L from "leaflet";
 import { supabase } from "@/integrations/supabase/client";
 import ActivityFilters, { type RadiusOption } from "@/components/ActivityFilters";
 import {
+  AGE_RANGES,
   CATEGORY_ICONS,
   CATEGORY_LABELS,
   LUXEMBOURG_CENTER,
   type MapActivity,
 } from "@/lib/activity-categories";
+
+const WEEKDAYS_PT = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"] as const;
+
+function weekdayName(date: Date): string {
+  return WEEKDAYS_PT[date.getDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6];
+}
+
+const DIACRITICS_RANGE = String.fromCharCode(0x0300) + "-" + String.fromCharCode(0x036f);
+const DIACRITICS_REGEX = new RegExp(`[${DIACRITICS_RANGE}]`, "g");
+
+function normalizeText(value: string) {
+  return value.toLowerCase().normalize("NFD").replace(DIACRITICS_REGEX, "");
+}
+
+// schedule_info is free text (no structured date column exists), so
+// today/tomorrow/weekend/next-week are best-effort keyword matches.
+function matchesWhen(activity: MapActivity, when: string | null) {
+  if (!when) return true;
+  if (when === "recurring") return activity.is_recurring === true;
+
+  const info = normalizeText(activity.schedule_info ?? "");
+  const now = new Date();
+
+  if (when === "today") {
+    return info.includes(weekdayName(now)) || info.includes("hoje");
+  }
+  if (when === "tomorrow") {
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return info.includes(weekdayName(tomorrow)) || info.includes("amanha");
+  }
+  if (when === "weekend") {
+    return (
+      info.includes(WEEKDAYS_PT[0]) ||
+      info.includes(WEEKDAYS_PT[6]) ||
+      info.includes("fim de semana")
+    );
+  }
+  if (when === "next-week") {
+    return info.includes("proxima semana") || activity.is_recurring === true;
+  }
+  return true;
+}
+
+function matchesAges(activity: MapActivity, ages: string[]) {
+  if (ages.length === 0) return true;
+  if (activity.age_min === null && activity.age_max === null) return true;
+  const activityMin = activity.age_min ?? 0;
+  const activityMax = activity.age_max ?? 99;
+  return ages.some((id) => {
+    const range = AGE_RANGES.find((r) => r.id === id);
+    if (!range) return false;
+    return activityMin <= range.max && activityMax >= range.min;
+  });
+}
+
+function filterActivities(
+  activities: MapActivity[],
+  filters: {
+    center: [number, number] | null;
+    radius: number | null;
+    categories: string[];
+    ages: string[];
+    when: string | null;
+  },
+) {
+  const { center, radius, categories, ages, when } = filters;
+  return activities.filter((a) => {
+    if (center && radius !== null && distanceKm(center, [a.latitude, a.longitude]) > radius) {
+      return false;
+    }
+    if (categories.length > 0 && !categories.includes(a.category)) return false;
+    if (!matchesAges(a, ages)) return false;
+    if (!matchesWhen(a, when)) return false;
+    return true;
+  });
+}
 
 function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, (c) =>
@@ -34,9 +112,12 @@ export default function ActivityMap() {
   const markersRef = useRef<Marker[]>([]);
   const [activities, setActivities] = useState<MapActivity[]>([]);
   const [status, setStatus] = useState<string | null>(null);
-  const [center, setCenter] = useState<[number, number] | null>(null);
+  const [center, setCenter] = useState<[number, number]>(LUXEMBOURG_CENTER);
   const [radius, setRadius] = useState<RadiusOption>(null);
   const [searching, setSearching] = useState(false);
+  const [ages, setAges] = useState<string[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [when, setWhen] = useState<string | null>(null);
 
   useEffect(() => {
     if (mapRef.current || !containerRef.current) return;
@@ -56,7 +137,9 @@ export default function ActivityMap() {
     let active = true;
     supabase
       .from("activities")
-      .select("id, name, category, latitude, longitude")
+      .select(
+        "id, name, category, latitude, longitude, age_min, age_max, is_recurring, schedule_info",
+      )
       .not("latitude", "is", null)
       .not("longitude", "is", null)
       .then(({ data, error }) => {
@@ -73,11 +156,16 @@ export default function ActivityMap() {
   }, []);
 
   const visible = useMemo(() => {
-    if (!center || radius === null) return activities;
-    return activities.filter(
-      (a) => distanceKm(center, [a.latitude, a.longitude]) <= radius,
-    );
-  }, [activities, center, radius]);
+    return filterActivities(activities, { center, radius, categories, ages, when });
+  }, [activities, center, radius, categories, ages, when]);
+
+  const toggleAge = (id: string) => {
+    setAges((prev) => (prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]));
+  };
+
+  const toggleCategory = (id: string) => {
+    setCategories((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
+  };
 
   useEffect(() => {
     const map = mapRef.current;
@@ -150,8 +238,15 @@ export default function ActivityMap() {
         onRadiusChange={setRadius}
         onLocateMe={locateMe}
         onSearchPlace={searchPlace}
-        hasCenter={center !== null}
+        hasCenter
         searching={searching}
+        ages={ages}
+        onToggleAge={toggleAge}
+        categories={categories}
+        onToggleCategory={toggleCategory}
+        when={when}
+        onWhenChange={setWhen}
+        count={visible.length}
       />
       <div className="relative flex-1">
         <div ref={containerRef} className="h-full w-full" />
