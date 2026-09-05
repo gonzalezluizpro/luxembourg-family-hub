@@ -1,15 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Map as LeafletMap, Marker } from "leaflet";
 import L from "leaflet";
+import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
+import ActivityCard from "@/components/ActivityCard";
 import ActivityFilters, { type RadiusOption } from "@/components/ActivityFilters";
-import {
-  AGE_RANGES,
-  CATEGORY_ICONS,
-  CATEGORY_LABELS,
-  LUXEMBOURG_CENTER,
-  type MapActivity,
-} from "@/lib/activity-categories";
+import { AGE_RANGES, CATEGORY_ICONS, LUXEMBOURG_CENTER, type MapActivity } from "@/lib/activity-categories";
 
 const WEEKDAYS_PT = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"] as const;
 
@@ -107,6 +103,7 @@ function distanceKm(a: [number, number], b: [number, number]) {
 }
 
 export default function ActivityMap() {
+  const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const markersRef = useRef<Marker[]>([]);
@@ -138,7 +135,7 @@ export default function ActivityMap() {
     supabase
       .from("activities")
       .select(
-        "id, name, category, latitude, longitude, age_min, age_max, is_recurring, schedule_info",
+        "id, name, category, latitude, longitude, age_min, age_max, is_recurring, schedule_info, languages, entry_type",
       )
       .not("latitude", "is", null)
       .not("longitude", "is", null)
@@ -182,13 +179,12 @@ export default function ActivityMap() {
       });
       return L.marker([a.latitude, a.longitude], { icon })
         .addTo(map)
-        .bindPopup(
-          `<strong>${escapeHtml(a.name)}</strong><br/>${emoji} ${escapeHtml(
-            CATEGORY_LABELS[a.category] ?? a.category,
-          )}`,
-        );
+        .bindTooltip(`${emoji} ${escapeHtml(a.name)}`, { direction: "top", offset: [0, -16] })
+        .on("click", () => {
+          navigate({ to: "/atividade/$id", params: { id: a.id } });
+        });
     });
-  }, [visible]);
+  }, [visible, navigate]);
 
   const locateMe = () => {
     if (!navigator.geolocation) {
@@ -248,13 +244,30 @@ export default function ActivityMap() {
         onWhenChange={setWhen}
         count={visible.length}
       />
-      <div className="relative flex-1">
-        <div ref={containerRef} className="h-full w-full" />
-        {status && (
-          <p className="absolute inset-x-0 top-3 z-[1000] mx-auto w-fit rounded-full bg-card px-3 py-1 text-xs text-muted-foreground shadow">
-            {status}
-          </p>
-        )}
+      <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
+        <div className="relative h-[45vh] shrink-0 md:h-full md:flex-1">
+          <div ref={containerRef} className="h-full w-full" />
+          {status && (
+            <p className="absolute inset-x-0 top-3 z-[1000] mx-auto w-fit rounded-full bg-card px-3 py-1 text-xs text-muted-foreground shadow">
+              {status}
+            </p>
+          )}
+        </div>
+        <aside className="flex-1 space-y-2 overflow-y-auto border-t border-border bg-background p-3 md:w-96 md:flex-none md:border-l md:border-t-0">
+          {visible.length === 0 ? (
+            <p className="p-3 text-center text-sm text-muted-foreground">
+              Nenhuma atividade encontrada com esses filtros.
+            </p>
+          ) : (
+            visible.map((a) => (
+              <ActivityCard
+                key={a.id}
+                activity={a}
+                distanceKm={distanceKm(center, [a.latitude, a.longitude])}
+              />
+            ))
+          )}
+        </aside>
       </div>
     </div>
   );

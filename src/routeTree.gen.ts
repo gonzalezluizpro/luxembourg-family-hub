@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ExplorarRouteImport } from './routes/explorar'
+import { Route as AtividadeIdRouteImport } from './routes/atividade.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,31 +23,40 @@ const ExplorarRoute = ExplorarRouteImport.update({
   path: '/explorar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AtividadeIdRoute = AtividadeIdRouteImport.update({
+  id: '/atividade/$id',
+  path: '/atividade/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/explorar': typeof ExplorarRoute
+  '/atividade/$id': typeof AtividadeIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/explorar': typeof ExplorarRoute
+  '/atividade/$id': typeof AtividadeIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/explorar': typeof ExplorarRoute
+  '/atividade/$id': typeof AtividadeIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/explorar'
+  fullPaths: '/' | '/explorar' | '/atividade/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/explorar'
-  id: '__root__' | '/' | '/explorar'
+  to: '/' | '/explorar' | '/atividade/$id'
+  id: '__root__' | '/' | '/explorar' | '/atividade/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ExplorarRoute: typeof ExplorarRoute
+  AtividadeIdRoute: typeof AtividadeIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +75,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExplorarRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/atividade/$id': {
+      id: '/atividade/$id'
+      path: '/atividade/$id'
+      fullPath: '/atividade/$id'
+      preLoaderRoute: typeof AtividadeIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ExplorarRoute: ExplorarRoute,
+  AtividadeIdRoute: AtividadeIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
