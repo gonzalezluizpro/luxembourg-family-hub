@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Map as LeafletMap, Marker } from "leaflet";
 import L from "leaflet";
 import { supabase } from "@/integrations/supabase/client";
+import ActivityFilters, { type RadiusOption } from "@/components/ActivityFilters";
 import {
   CATEGORY_ICONS,
   CATEGORY_LABELS,
@@ -15,12 +16,27 @@ function escapeHtml(value: string) {
   );
 }
 
+function distanceKm(a: [number, number], b: [number, number]) {
+  const R = 6371;
+  const toRad = (v: number) => (v * Math.PI) / 180;
+  const dLat = toRad(b[0] - a[0]);
+  const dLon = toRad(b[1] - a[1]);
+  const lat1 = toRad(a[0]);
+  const lat2 = toRad(b[0]);
+  const h =
+    Math.sin(dLat / 2) ** 2 + Math.sin(dLon / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
 export default function ActivityMap() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const markersRef = useRef<Marker[]>([]);
   const [activities, setActivities] = useState<MapActivity[]>([]);
   const [status, setStatus] = useState<string | null>(null);
+  const [center, setCenter] = useState<[number, number] | null>(null);
+  const [radius, setRadius] = useState<RadiusOption>(null);
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     if (mapRef.current || !containerRef.current) return;
@@ -56,11 +72,18 @@ export default function ActivityMap() {
     };
   }, []);
 
+  const visible = useMemo(() => {
+    if (!center || radius === null) return activities;
+    return activities.filter(
+      (a) => distanceKm(center, [a.latitude, a.longitude]) <= radius,
+    );
+  }, [activities, center, radius]);
+
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
     markersRef.current.forEach((m) => m.remove());
-    markersRef.current = activities.map((a) => {
+    markersRef.current = visible.map((a) => {
       const emoji = CATEGORY_ICONS[a.category] ?? "📍";
       const icon = L.divIcon({
         className: "",
@@ -77,7 +100,7 @@ export default function ActivityMap() {
           )}`,
         );
     });
-  }, [activities]);
+  }, [visible]);
 
   const locateMe = () => {
     if (!navigator.geolocation) {
@@ -87,25 +110,53 @@ export default function ActivityMap() {
     setStatus("Buscando sua localização...");
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        mapRef.current?.setView([pos.coords.latitude, pos.coords.longitude], 14);
+        const point: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+        setCenter(point);
+        mapRef.current?.setView(point, 13);
         setStatus(null);
       },
       () => setStatus("Não conseguimos acessar sua localização."),
     );
   };
 
+  const searchPlace = async (query: string) => {
+    setSearching(true);
+    setStatus("Buscando endereço...");
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`,
+      );
+      const data = (await res.json()) as Array<{ lat: string; lon: string }>;
+      const first = data[0];
+      if (!first) {
+        setStatus("Nenhum lugar encontrado com esse nome.");
+        return;
+      }
+      const point: [number, number] = [Number(first.lat), Number(first.lon)];
+      setCenter(point);
+      mapRef.current?.setView(point, 13);
+      setStatus(null);
+    } catch {
+      setStatus("Não foi possível buscar esse endereço.");
+    } finally {
+      setSearching(false);
+    }
+  };
+
   return (
-    <div className="relative h-full w-full">
-      <div ref={containerRef} className="h-full w-full" />
-      <div className="pointer-events-none absolute inset-x-0 top-3 z-[1000] flex flex-col items-center gap-2 px-4">
-        <button
-          onClick={locateMe}
-          className="pointer-events-auto rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-lg transition-colors hover:bg-primary/90"
-        >
-          📍 Usar minha localização
-        </button>
+    <div className="flex h-full w-full flex-col">
+      <ActivityFilters
+        radius={radius}
+        onRadiusChange={setRadius}
+        onLocateMe={locateMe}
+        onSearchPlace={searchPlace}
+        hasCenter={center !== null}
+        searching={searching}
+      />
+      <div className="relative flex-1">
+        <div ref={containerRef} className="h-full w-full" />
         {status && (
-          <p className="pointer-events-auto rounded-full bg-card px-3 py-1 text-xs text-muted-foreground shadow">
+          <p className="absolute inset-x-0 top-3 z-[1000] mx-auto w-fit rounded-full bg-card px-3 py-1 text-xs text-muted-foreground shadow">
             {status}
           </p>
         )}
