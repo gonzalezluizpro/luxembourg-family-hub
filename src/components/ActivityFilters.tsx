@@ -1,4 +1,11 @@
 import { useState } from "react";
+import {
+  AGE_RANGES,
+  CATEGORY_ICONS,
+  CATEGORY_KEYS,
+  CATEGORY_LABELS,
+  WHEN_OPTIONS,
+} from "@/lib/activity-categories";
 
 export type RadiusOption = 5 | 10 | 20 | null;
 
@@ -9,6 +16,13 @@ type Props = {
   onSearchPlace: (query: string) => void;
   hasCenter: boolean;
   searching?: boolean;
+  ages: string[];
+  onToggleAge: (id: string) => void;
+  categories: string[];
+  onToggleCategory: (id: string) => void;
+  when: string | null;
+  onWhenChange: (id: string | null) => void;
+  count: number;
 };
 
 const RADII: Array<{ value: RadiusOption; label: string }> = [
@@ -17,6 +31,44 @@ const RADII: Array<{ value: RadiusOption; label: string }> = [
   { value: 20, label: "20 km" },
 ];
 
+function Chip({
+  active,
+  disabled,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-40 ${
+        active
+          ? "border-primary bg-primary/10 text-primary"
+          : "border-border bg-background text-foreground hover:bg-muted"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Group({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </p>
+      <div className="flex flex-wrap items-center gap-2">{children}</div>
+    </div>
+  );
+}
+
 export default function ActivityFilters({
   radius,
   onRadiusChange,
@@ -24,15 +76,19 @@ export default function ActivityFilters({
   onSearchPlace,
   hasCenter,
   searching,
+  ages,
+  onToggleAge,
+  categories,
+  onToggleCategory,
+  when,
+  onWhenChange,
+  count,
 }: Props) {
   const [query, setQuery] = useState("");
 
   return (
-    <section className="border-b border-border bg-card px-4 py-3">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Localização
-      </p>
-      <div className="flex flex-wrap items-center gap-2">
+    <section className="space-y-3 border-b border-border bg-card px-4 py-3">
+      <Group title="Localização">
         <button
           type="button"
           onClick={onLocateMe}
@@ -41,19 +97,14 @@ export default function ActivityFilters({
           📍 Perto de mim
         </button>
         {RADII.map((r) => (
-          <button
+          <Chip
             key={r.label}
-            type="button"
+            active={radius === r.value}
             disabled={!hasCenter}
             onClick={() => onRadiusChange(radius === r.value ? null : r.value)}
-            className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-40 ${
-              radius === r.value
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border bg-background text-foreground hover:bg-muted"
-            }`}
           >
             {r.label}
-          </button>
+          </Chip>
         ))}
         {radius !== null && (
           <button
@@ -85,7 +136,43 @@ export default function ActivityFilters({
             {searching ? "..." : "Buscar"}
           </button>
         </form>
-      </div>
+      </Group>
+
+      <Group title="Idade">
+        {AGE_RANGES.map((r) => (
+          <Chip key={r.id} active={ages.includes(r.id)} onClick={() => onToggleAge(r.id)}>
+            {r.label}
+          </Chip>
+        ))}
+      </Group>
+
+      <Group title="Tipo">
+        {CATEGORY_KEYS.map((key) => (
+          <Chip
+            key={key}
+            active={categories.includes(key)}
+            onClick={() => onToggleCategory(key)}
+          >
+            {CATEGORY_ICONS[key]} {CATEGORY_LABELS[key]}
+          </Chip>
+        ))}
+      </Group>
+
+      <Group title="Quando">
+        {WHEN_OPTIONS.map((o) => (
+          <Chip
+            key={o.id}
+            active={when === o.id}
+            onClick={() => onWhenChange(when === o.id ? null : o.id)}
+          >
+            {o.label}
+          </Chip>
+        ))}
+      </Group>
+
+      <p className="text-sm font-medium text-foreground">
+        {count} {count === 1 ? "atividade encontrada" : "atividades encontradas"}
+      </p>
     </section>
   );
 }
