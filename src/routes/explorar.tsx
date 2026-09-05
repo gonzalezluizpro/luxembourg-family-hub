@@ -1,4 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, ClientOnly } from "@tanstack/react-router";
+import { Suspense, lazy } from "react";
+
+const ActivityMap = lazy(() => import("@/components/ActivityMap"));
 
 export const Route = createFileRoute("/explorar")({
   head: () => ({
@@ -16,14 +19,35 @@ export const Route = createFileRoute("/explorar")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [
+      {
+        rel: "stylesheet",
+        href: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
+      },
+    ],
   }),
   component: Explorar,
 });
 
+function MapSkeleton() {
+  return (
+    <div className="flex h-full w-full items-center justify-center bg-muted">
+      <p className="text-sm text-muted-foreground">Carregando o mapa...</p>
+    </div>
+  );
+}
+
 function Explorar() {
   return (
-    <main className="flex min-h-screen items-center justify-center px-6">
-      <p className="text-muted-foreground">Mapa de atividades em breve...</p>
+    <main className="flex h-screen flex-col">
+      <h1 className="sr-only">Explorar atividades para famílias em Luxemburgo</h1>
+      <div className="flex-1">
+        <ClientOnly fallback={<MapSkeleton />}>
+          <Suspense fallback={<MapSkeleton />}>
+            <ActivityMap />
+          </Suspense>
+        </ClientOnly>
+      </div>
     </main>
   );
 }
