@@ -1,5 +1,6 @@
 import { createFileRoute, ClientOnly } from "@tanstack/react-router";
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
+import { trackEvent } from "@/lib/analytics";
 
 const ActivityMap = lazy(() => import("@/components/ActivityMap"));
 
@@ -38,6 +39,10 @@ function MapSkeleton() {
 }
 
 function Explorar() {
+  useEffect(() => {
+    trackEvent("page_view", { page_path: "/explorar" });
+  }, []);
+
   return (
     <main className="flex h-screen flex-col">
       <h1 className="sr-only">Explorar atividades para famílias em Luxemburgo</h1>

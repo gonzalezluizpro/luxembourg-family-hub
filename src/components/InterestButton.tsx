@@ -1,8 +1,10 @@
 import { toast } from "sonner";
 import { useActivityInterest } from "@/hooks/use-activity-interest";
+import { trackEvent } from "@/lib/analytics";
 
 type InterestButtonProps = {
   activityId: string;
+  activityName: string;
   size?: "sm" | "md";
 };
 
@@ -10,7 +12,11 @@ function formatInterestCount(count: number) {
   return count === 1 ? "1 família interessada" : `${count} famílias interessadas`;
 }
 
-export default function InterestButton({ activityId, size = "md" }: InterestButtonProps) {
+export default function InterestButton({
+  activityId,
+  activityName,
+  size = "md",
+}: InterestButtonProps) {
   const { count, interested, submitting, markInterest } = useActivityInterest(activityId);
   const isCompact = size === "sm";
 
@@ -20,6 +26,10 @@ export default function InterestButton({ activityId, size = "md" }: InterestButt
     const ok = await markInterest();
     if (ok === false) {
       toast.error("Não foi possível registrar seu interesse. Tente de novo.");
+      return;
+    }
+    if (ok === true) {
+      trackEvent("interest_registered", { activity_name: activityName });
     }
   };
 

@@ -5,7 +5,13 @@ import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import ActivityCard from "@/components/ActivityCard";
 import ActivityFilters, { type RadiusOption } from "@/components/ActivityFilters";
-import { AGE_RANGES, CATEGORY_ICONS, LUXEMBOURG_CENTER, type MapActivity } from "@/lib/activity-categories";
+import {
+  AGE_RANGES,
+  CATEGORY_ICONS,
+  LUXEMBOURG_CENTER,
+  type MapActivity,
+} from "@/lib/activity-categories";
+import { trackEvent } from "@/lib/analytics";
 
 const WEEKDAYS_PT = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"] as const;
 
@@ -85,8 +91,9 @@ function filterActivities(
 }
 
 function escapeHtml(value: string) {
-  return value.replace(/[&<>"']/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
+  return value.replace(
+    /[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
   );
 }
 
@@ -97,8 +104,7 @@ function distanceKm(a: [number, number], b: [number, number]) {
   const dLon = toRad(b[1] - a[1]);
   const lat1 = toRad(a[0]);
   const lat2 = toRad(b[0]);
-  const h =
-    Math.sin(dLat / 2) ** 2 + Math.sin(dLon / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+  const h = Math.sin(dLat / 2) ** 2 + Math.sin(dLon / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
@@ -157,11 +163,27 @@ export default function ActivityMap() {
   }, [activities, center, radius, categories, ages, when]);
 
   const toggleAge = (id: string) => {
+    if (!ages.includes(id)) trackEvent("filter_applied", { filter_type: "age", filter_value: id });
     setAges((prev) => (prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]));
   };
 
   const toggleCategory = (id: string) => {
+    if (!categories.includes(id)) {
+      trackEvent("filter_applied", { filter_type: "type", filter_value: id });
+    }
     setCategories((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
+  };
+
+  const handleRadiusChange = (value: RadiusOption) => {
+    if (value !== null) {
+      trackEvent("filter_applied", { filter_type: "location", filter_value: `${value}km` });
+    }
+    setRadius(value);
+  };
+
+  const handleWhenChange = (value: string | null) => {
+    if (value !== null) trackEvent("filter_applied", { filter_type: "when", filter_value: value });
+    setWhen(value);
   };
 
   useEffect(() => {
@@ -231,7 +253,7 @@ export default function ActivityMap() {
     <div className="flex h-full w-full flex-col">
       <ActivityFilters
         radius={radius}
-        onRadiusChange={setRadius}
+        onRadiusChange={handleRadiusChange}
         onLocateMe={locateMe}
         onSearchPlace={searchPlace}
         hasCenter
@@ -241,7 +263,7 @@ export default function ActivityMap() {
         categories={categories}
         onToggleCategory={toggleCategory}
         when={when}
-        onWhenChange={setWhen}
+        onWhenChange={handleWhenChange}
         count={visible.length}
       />
       <div className="flex flex-1 flex-col overflow-hidden md:flex-row">

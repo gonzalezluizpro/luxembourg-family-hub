@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import InterestButton from "@/components/InterestButton";
+import { trackEvent } from "@/lib/analytics";
 import {
   CATEGORY_ICONS,
   CATEGORY_LABELS,
@@ -26,6 +27,7 @@ export default function ActivityCard({ activity, distanceKm }: ActivityCardProps
       <Link
         to="/atividade/$id"
         params={{ id: activity.id }}
+        onClick={() => trackEvent("activity_card_click", { activity_name: activity.name })}
         className="block transition-colors hover:opacity-80"
       >
         <div className="flex items-start justify-between gap-2">
@@ -50,7 +52,7 @@ export default function ActivityCard({ activity, distanceKm }: ActivityCardProps
       </Link>
 
       <div className="mt-2 border-t border-border pt-2">
-        <InterestButton activityId={activity.id} size="sm" />
+        <InterestButton activityId={activity.id} activityName={activity.name} size="sm" />
       </div>
     </div>
   );

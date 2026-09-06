@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import InterestButton from "@/components/InterestButton";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { trackEvent } from "@/lib/analytics";
 import {
   CATEGORY_ICONS,
   CATEGORY_LABELS,
@@ -78,6 +79,7 @@ function AtividadeDetail() {
 
   const handleShare = async () => {
     if (!activity) return;
+    trackEvent("share_click", { activity_name: activity.name });
     const url = window.location.href;
     if (navigator.share) {
       try {
@@ -139,7 +141,7 @@ function AtividadeDetail() {
       </div>
 
       <div className="mt-4">
-        <InterestButton activityId={activity.id} />
+        <InterestButton activityId={activity.id} activityName={activity.name} />
       </div>
 
       {activity.description && (
@@ -171,6 +173,7 @@ function AtividadeDetail() {
             href={activity.source_url}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => trackEvent("website_click", { activity_name: activity.name })}
             className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
           >
             <Globe className="h-4 w-4" />
@@ -182,6 +185,7 @@ function AtividadeDetail() {
             href={directionsUrl}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => trackEvent("directions_click", { activity_name: activity.name })}
             className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
           >
             <Navigation className="h-4 w-4" />

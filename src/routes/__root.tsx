@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
+import CookieConsentBanner from "@/components/CookieConsentBanner";
 
 function NotFoundComponent() {
   return (
@@ -79,10 +80,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "FamilyLoop Luxembourg" },
-      { name: "description", content: "Discover family-friendly activities and local opportunities in Luxembourg with FamilyLoop." },
+      {
+        name: "description",
+        content:
+          "Discover family-friendly activities and local opportunities in Luxembourg with FamilyLoop.",
+      },
       { name: "author", content: "FamilyLoop" },
       { property: "og:title", content: "FamilyLoop Luxembourg" },
-      { property: "og:description", content: "Discover family-friendly activities and local opportunities in Luxembourg with FamilyLoop." },
+      {
+        property: "og:description",
+        content:
+          "Discover family-friendly activities and local opportunities in Luxembourg with FamilyLoop.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@FamilyLoopLU" },
@@ -123,6 +132,7 @@ function RootComponent() {
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
       <Toaster />
+      <CookieConsentBanner />
     </QueryClientProvider>
   );
 }
