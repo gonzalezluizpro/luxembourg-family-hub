@@ -239,6 +239,16 @@ export default function ActivityMap() {
     navigate({ search: (prev) => ({ ...prev, city: value ?? undefined }), replace: true });
   };
 
+  // Clears only the filter params — map position/zoom (lat/lng/zoom) is
+  // viewport state, not a filter, so it's left untouched.
+  const handleClearFilters = () => {
+    trackEvent("clear_filters");
+    navigate({
+      search: (prev) => ({ lat: prev.lat, lng: prev.lng, zoom: prev.zoom }),
+      replace: true,
+    });
+  };
+
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -298,6 +308,7 @@ export default function ActivityMap() {
         onToggleCategory={toggleCategory}
         when={when}
         onWhenChange={handleWhenChange}
+        onClearFilters={handleClearFilters}
         count={visible.length}
       />
       <div className="flex flex-1 flex-col overflow-hidden md:flex-row">

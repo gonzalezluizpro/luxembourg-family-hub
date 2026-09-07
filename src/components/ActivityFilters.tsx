@@ -44,6 +44,7 @@ type Props = {
   onToggleCategory: (id: string) => void;
   when: string | null;
   onWhenChange: (id: string | null) => void;
+  onClearFilters: () => void;
   count: number;
 };
 
@@ -99,6 +100,18 @@ function CountLabel({ count }: { count: number }) {
   );
 }
 
+function ClearFiltersButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="shrink-0 text-sm font-medium text-muted-foreground underline hover:text-foreground"
+    >
+      Limpar filtros
+    </button>
+  );
+}
+
 export default function ActivityFilters({
   radius,
   onRadiusChange,
@@ -113,6 +126,7 @@ export default function ActivityFilters({
   onToggleCategory,
   when,
   onWhenChange,
+  onClearFilters,
   count,
 }: Props) {
   const [cityQuery, setCityQuery] = useState("");
@@ -261,7 +275,10 @@ export default function ActivityFilters({
       {/* Desktop / tablet: full filter bar, always expanded */}
       <section className="hidden space-y-3 border-b border-border bg-card px-4 py-3 md:block">
         {filterGroups}
-        <CountLabel count={count} />
+        <div className="flex items-center justify-between gap-3">
+          <CountLabel count={count} />
+          {activeFilterCount > 0 && <ClearFiltersButton onClick={onClearFilters} />}
+        </div>
       </section>
 
       {/* Mobile: compact bar that opens the filters as a bottom sheet */}
@@ -301,8 +318,9 @@ export default function ActivityFilters({
               mobileTriggerRef.current?.focus();
             }}
           >
-            <DrawerHeader>
+            <DrawerHeader className="flex items-center justify-between gap-2 space-y-0">
               <DrawerTitle>Filtros</DrawerTitle>
+              {activeFilterCount > 0 && <ClearFiltersButton onClick={onClearFilters} />}
             </DrawerHeader>
             <div className="space-y-4 overflow-y-auto px-4 pb-2">{filterGroups}</div>
             <DrawerFooter>
