@@ -293,7 +293,7 @@ export default function ActivityMap() {
   };
 
   return (
-    <div className="flex h-full w-full flex-col">
+    <div className="flex h-full min-h-0 w-full flex-col">
       <ActivityFilters
         radius={radius}
         onRadiusChange={handleRadiusChange}
@@ -311,7 +311,12 @@ export default function ActivityMap() {
         onClearFilters={handleClearFilters}
         count={visible.length}
       />
-      <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
+      {/* min-h-0 on this row and on <aside> below: flex items default to
+          min-height:auto, which lets them grow past their flex-basis to fit
+          content instead of respecting overflow — that's what was letting
+          the activity list balloon the whole page instead of scrolling
+          inside itself, taking the map (meant to stay put) along with it. */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
         <div className="relative h-[45vh] shrink-0 md:h-full md:flex-1">
           <div ref={containerRef} className="h-full w-full" />
           {status && (
@@ -320,7 +325,7 @@ export default function ActivityMap() {
             </p>
           )}
         </div>
-        <aside className="flex-1 space-y-2 overflow-y-auto border-t border-border bg-background p-3 md:w-96 md:flex-none md:border-l md:border-t-0">
+        <aside className="min-h-0 flex-1 space-y-2 overflow-y-auto border-t border-border bg-background p-3 md:w-96 md:flex-none md:border-t-0 md:border-l">
           {visible.length === 0 ? (
             <p className="p-3 text-center text-sm text-muted-foreground">
               Nenhuma atividade encontrada com esses filtros.

@@ -62,7 +62,11 @@ function Explorar() {
   return (
     <main className="flex h-screen flex-col">
       <h1 className="sr-only">Explorar atividades para famílias em Luxemburgo</h1>
-      <div className="flex-1">
+      {/* min-h-0: without it, this flex item defaults to min-height:auto and
+          grows to fit ActivityMap's content (the activity list) instead of
+          respecting the height h-screen gives it — which is what let the
+          whole page scroll instead of just the <aside> list. */}
+      <div className="min-h-0 flex-1">
         <ClientOnly fallback={<MapSkeleton />}>
           <Suspense fallback={<MapSkeleton />}>
             <ActivityMap />
