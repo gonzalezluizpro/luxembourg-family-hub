@@ -112,6 +112,93 @@ function ClearFiltersButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+// Own component (not inlined in ActivityFilters) so it gets its own open/query
+// state — the desktop and mobile-drawer layouts both render `filterGroups`,
+// and if this lived directly in ActivityFilters, both copies would share one
+// `useState`, so opening the dropdown in one layout would also pop the
+// other's PopoverContent open in a Portal outside the CSS-hidden trigger.
+function CityCombobox({
+  cities,
+  city,
+  onCityChange,
+}: {
+  cities: string[];
+  city: string | null;
+  onCityChange: (city: string | null) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const suggestions = useMemo(() => {
+    const q = normalizeText(query.trim());
+    if (!q) return cities;
+    return cities.filter((c) => normalizeText(c).includes(q));
+  }, [cities, query]);
+
+  return (
+    <>
+      {/* modal: without it, Vaul's drawer focus trap (when this renders inside
+          the mobile filter sheet) fights the popover for focus and closes it
+          the instant it opens. */}
+      <Popover open={open} onOpenChange={setOpen} modal>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            role="combobox"
+            aria-expanded={open}
+            className="flex min-w-[200px] flex-1 items-center justify-between gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-sm outline-none focus:border-primary"
+          >
+            <span className={city ? "text-foreground" : "text-muted-foreground"}>
+              {city ?? "Buscar cidade"}
+            </span>
+            <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          className="z-[1300] w-[240px] border-border p-0 shadow-lg"
+          align="start"
+          sideOffset={6}
+        >
+          <Command shouldFilter={false}>
+            <CommandInput placeholder="Buscar cidade..." value={query} onValueChange={setQuery} />
+            <CommandList>
+              <CommandEmpty>Nenhuma cidade encontrada.</CommandEmpty>
+              <CommandGroup>
+                {suggestions.map((c) => (
+                  <CommandItem
+                    key={c}
+                    value={c}
+                    onSelect={() => {
+                      onCityChange(c);
+                      setQuery("");
+                      setOpen(false);
+                    }}
+                  >
+                    <Check className={cn("h-4 w-4", city === c ? "opacity-100" : "opacity-0")} />
+                    {c}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      {city !== null && (
+        <button
+          type="button"
+          onClick={() => {
+            onCityChange(null);
+            setQuery("");
+          }}
+          className="rounded-full px-3 py-1.5 text-sm text-muted-foreground underline"
+        >
+          Limpar
+        </button>
+      )}
+    </>
+  );
+}
+
 export default function ActivityFilters({
   radius,
   onRadiusChange,
@@ -129,17 +216,9 @@ export default function ActivityFilters({
   onClearFilters,
   count,
 }: Props) {
-  const [cityQuery, setCityQuery] = useState("");
-  const [cityPopoverOpen, setCityPopoverOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const mobileTriggerRef = useRef<HTMLButtonElement>(null);
   const drawerContentRef = useRef<HTMLDivElement>(null);
-
-  const citySuggestions = useMemo(() => {
-    const q = normalizeText(cityQuery.trim());
-    if (!q) return cities;
-    return cities.filter((c) => normalizeText(c).includes(q));
-  }, [cities, cityQuery]);
 
   const activeFilterCount =
     (radius !== null ? 1 : 0) +
@@ -177,63 +256,7 @@ export default function ActivityFilters({
             Limpar
           </button>
         )}
-        <Popover open={cityPopoverOpen} onOpenChange={setCityPopoverOpen}>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              role="combobox"
-              aria-expanded={cityPopoverOpen}
-              className="flex min-w-[200px] flex-1 items-center justify-between gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-sm outline-none focus:border-primary"
-            >
-              <span className={city ? "text-foreground" : "text-muted-foreground"}>
-                {city ?? "Buscar cidade"}
-              </span>
-              <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[240px] p-0" align="start">
-            <Command shouldFilter={false}>
-              <CommandInput
-                placeholder="Buscar cidade..."
-                value={cityQuery}
-                onValueChange={setCityQuery}
-              />
-              <CommandList>
-                <CommandEmpty>Nenhuma cidade encontrada.</CommandEmpty>
-                <CommandGroup>
-                  {citySuggestions.map((c) => (
-                    <CommandItem
-                      key={c}
-                      value={c}
-                      onSelect={() => {
-                        onCityChange(c);
-                        setCityQuery("");
-                        setCityPopoverOpen(false);
-                      }}
-                    >
-                      <Check
-                        className={cn("h-4 w-4", city === c ? "opacity-100" : "opacity-0")}
-                      />
-                      {c}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
-        {city !== null && (
-          <button
-            type="button"
-            onClick={() => {
-              onCityChange(null);
-              setCityQuery("");
-            }}
-            className="rounded-full px-3 py-1.5 text-sm text-muted-foreground underline"
-          >
-            Limpar
-          </button>
-        )}
+        <CityCombobox cities={cities} city={city} onCityChange={onCityChange} />
       </Group>
 
       <Group title="Idade">
