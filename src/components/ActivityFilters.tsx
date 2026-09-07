@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from "react";
-import { Check, ChevronsUpDown, SlidersHorizontal } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, Search, SlidersHorizontal } from "lucide-react";
 import {
   Drawer,
   DrawerClose,
@@ -9,15 +9,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import {
   AGE_RANGES,
   CATEGORY_ICONS,
@@ -117,6 +109,11 @@ function ClearFiltersButton({ onClick }: { onClick: () => void }) {
 // and if this lived directly in ActivityFilters, both copies would share one
 // `useState`, so opening the dropdown in one layout would also pop the
 // other's PopoverContent open in a Portal outside the CSS-hidden trigger.
+//
+// The visible "Buscar cidade" field IS the search input (no second, hidden
+// input inside the popover) — it doubles as the combobox trigger (via
+// PopoverAnchor, so focusing/typing opens it without the click-to-toggle
+// behavior a real PopoverTrigger would add) and the live filter query.
 function CityCombobox({
   cities,
   city,
@@ -126,8 +123,14 @@ function CityCombobox({
   city: string | null;
   onCityChange: (city: string | null) => void;
 }) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(city ?? "");
   const [open, setOpen] = useState(false);
+
+  // Reflects external changes (e.g. the top-level "Limpar filtros" button)
+  // while this stays mounted — but not while the user is actively editing.
+  useEffect(() => {
+    if (!open) setQuery(city ?? "");
+  }, [city, open]);
 
   const suggestions = useMemo(() => {
     const q = normalizeText(query.trim());
@@ -135,52 +138,82 @@ function CityCombobox({
     return cities.filter((c) => normalizeText(c).includes(q));
   }, [cities, query]);
 
+  const selectCity = (c: string) => {
+    onCityChange(c);
+    setQuery(c);
+    setOpen(false);
+  };
+
   return (
     <>
       {/* modal: without it, Vaul's drawer focus trap (when this renders inside
           the mobile filter sheet) fights the popover for focus and closes it
           the instant it opens. */}
-      <Popover open={open} onOpenChange={setOpen} modal>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            role="combobox"
-            aria-expanded={open}
-            className="flex min-w-[200px] flex-1 items-center justify-between gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-sm outline-none focus:border-primary"
-          >
-            <span className={city ? "text-foreground" : "text-muted-foreground"}>
-              {city ?? "Buscar cidade"}
-            </span>
-            <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
-          </button>
-        </PopoverTrigger>
+      <Popover
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          // Closed without picking a suggestion (outside click, Escape) —
+          // drop whatever was typed and show the actually-applied filter again.
+          if (!next) setQuery(city ?? "");
+        }}
+        modal
+      >
+        <PopoverAnchor asChild>
+          <div className="relative min-w-[200px] flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              role="combobox"
+              aria-expanded={open}
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                if (!open) setOpen(true);
+              }}
+              onFocus={(e) => {
+                setOpen(true);
+                e.target.select();
+              }}
+              onKeyDown={(e) => {
+                const first = suggestions[0];
+                if (e.key === "Enter" && first !== undefined) {
+                  e.preventDefault();
+                  selectCity(first);
+                }
+              }}
+              placeholder="Buscar cidade"
+              className="w-full rounded-full border border-border bg-background py-1.5 pl-9 pr-3 text-sm outline-none focus:border-primary"
+            />
+          </div>
+        </PopoverAnchor>
         <PopoverContent
-          className="z-[1300] w-[240px] border-border p-0 shadow-lg"
+          className="z-[1300] w-[240px] p-1 shadow-lg"
           align="start"
           sideOffset={6}
+          onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          <Command shouldFilter={false}>
-            <CommandInput placeholder="Buscar cidade..." value={query} onValueChange={setQuery} />
-            <CommandList>
-              <CommandEmpty>Nenhuma cidade encontrada.</CommandEmpty>
-              <CommandGroup>
-                {suggestions.map((c) => (
-                  <CommandItem
-                    key={c}
-                    value={c}
-                    onSelect={() => {
-                      onCityChange(c);
-                      setQuery("");
-                      setOpen(false);
-                    }}
-                  >
-                    <Check className={cn("h-4 w-4", city === c ? "opacity-100" : "opacity-0")} />
-                    {c}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
+          {suggestions.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              Nenhuma cidade encontrada.
+            </p>
+          ) : (
+            <div role="listbox" className="max-h-[300px] overflow-y-auto">
+              {suggestions.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  role="option"
+                  aria-selected={city === c}
+                  onClick={() => selectCity(c)}
+                  className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                >
+                  <Check className={cn("h-4 w-4 shrink-0", city === c ? "opacity-100" : "opacity-0")} />
+                  {c}
+                </button>
+              ))}
+            </div>
+          )}
         </PopoverContent>
       </Popover>
       {city !== null && (
