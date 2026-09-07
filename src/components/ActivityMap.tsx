@@ -12,18 +12,12 @@ import {
   type MapActivity,
 } from "@/lib/activity-categories";
 import { trackEvent } from "@/lib/analytics";
+import { normalizeText } from "@/lib/text";
 
 const WEEKDAYS_PT = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"] as const;
 
 function weekdayName(date: Date): string {
   return WEEKDAYS_PT[date.getDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6];
-}
-
-const DIACRITICS_RANGE = String.fromCharCode(0x0300) + "-" + String.fromCharCode(0x036f);
-const DIACRITICS_REGEX = new RegExp(`[${DIACRITICS_RANGE}]`, "g");
-
-function normalizeText(value: string) {
-  return value.toLowerCase().normalize("NFD").replace(DIACRITICS_REGEX, "");
 }
 
 // schedule_info is free text (no structured date column exists), so
@@ -76,13 +70,15 @@ function filterActivities(
     categories: string[];
     ages: string[];
     when: string | null;
+    city: string | null;
   },
 ) {
-  const { center, radius, categories, ages, when } = filters;
+  const { center, radius, categories, ages, when, city } = filters;
   return activities.filter((a) => {
     if (center && radius !== null && distanceKm(center, [a.latitude, a.longitude]) > radius) {
       return false;
     }
+    if (city !== null && a.city !== city) return false;
     if (categories.length > 0 && !categories.includes(a.category)) return false;
     if (!matchesAges(a, ages)) return false;
     if (!matchesWhen(a, when)) return false;
@@ -117,10 +113,10 @@ export default function ActivityMap() {
   const [status, setStatus] = useState<string | null>(null);
   const [center, setCenter] = useState<[number, number]>(LUXEMBOURG_CENTER);
   const [radius, setRadius] = useState<RadiusOption>(null);
-  const [searching, setSearching] = useState(false);
   const [ages, setAges] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [when, setWhen] = useState<string | null>(null);
+  const [city, setCity] = useState<string | null>(null);
 
   useEffect(() => {
     if (mapRef.current || !containerRef.current) return;
@@ -141,7 +137,7 @@ export default function ActivityMap() {
     supabase
       .from("activities")
       .select(
-        "id, name, category, latitude, longitude, age_min, age_max, is_recurring, schedule_info, languages, entry_type",
+        "id, name, category, latitude, longitude, age_min, age_max, is_recurring, schedule_info, languages, entry_type, city",
       )
       .not("latitude", "is", null)
       .not("longitude", "is", null)
@@ -159,8 +155,16 @@ export default function ActivityMap() {
   }, []);
 
   const visible = useMemo(() => {
-    return filterActivities(activities, { center, radius, categories, ages, when });
-  }, [activities, center, radius, categories, ages, when]);
+    return filterActivities(activities, { center, radius, categories, ages, when, city });
+  }, [activities, center, radius, categories, ages, when, city]);
+
+  const cities = useMemo(() => {
+    const distinct = new Set<string>();
+    for (const a of activities) {
+      if (a.city) distinct.add(a.city);
+    }
+    return Array.from(distinct).sort((a, b) => a.localeCompare(b, "pt"));
+  }, [activities]);
 
   const toggleAge = (id: string) => {
     if (!ages.includes(id)) trackEvent("filter_applied", { filter_type: "age", filter_value: id });
@@ -184,6 +188,13 @@ export default function ActivityMap() {
   const handleWhenChange = (value: string | null) => {
     if (value !== null) trackEvent("filter_applied", { filter_type: "when", filter_value: value });
     setWhen(value);
+  };
+
+  const handleCityChange = (value: string | null) => {
+    if (value !== null) {
+      trackEvent("filter_applied", { filter_type: "location", filter_value: "city" });
+    }
+    setCity(value);
   };
 
   useEffect(() => {
@@ -225,39 +236,16 @@ export default function ActivityMap() {
     );
   };
 
-  const searchPlace = async (query: string) => {
-    setSearching(true);
-    setStatus("Buscando endereço...");
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`,
-      );
-      const data = (await res.json()) as Array<{ lat: string; lon: string }>;
-      const first = data[0];
-      if (!first) {
-        setStatus("Nenhum lugar encontrado com esse nome.");
-        return;
-      }
-      const point: [number, number] = [Number(first.lat), Number(first.lon)];
-      setCenter(point);
-      mapRef.current?.setView(point, 13);
-      setStatus(null);
-    } catch {
-      setStatus("Não foi possível buscar esse endereço.");
-    } finally {
-      setSearching(false);
-    }
-  };
-
   return (
     <div className="flex h-full w-full flex-col">
       <ActivityFilters
         radius={radius}
         onRadiusChange={handleRadiusChange}
         onLocateMe={locateMe}
-        onSearchPlace={searchPlace}
         hasCenter
-        searching={searching}
+        cities={cities}
+        city={city}
+        onCityChange={handleCityChange}
         ages={ages}
         onToggleAge={toggleAge}
         categories={categories}

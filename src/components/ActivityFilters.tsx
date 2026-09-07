@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { SlidersHorizontal } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Check, ChevronsUpDown, SlidersHorizontal } from "lucide-react";
 import {
   Drawer,
   DrawerClose,
@@ -10,12 +10,23 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
   AGE_RANGES,
   CATEGORY_ICONS,
   CATEGORY_KEYS,
   CATEGORY_LABELS,
   WHEN_OPTIONS,
 } from "@/lib/activity-categories";
+import { normalizeText } from "@/lib/text";
+import { cn } from "@/lib/utils";
 
 export type RadiusOption = 5 | 10 | 20 | null;
 
@@ -23,9 +34,10 @@ type Props = {
   radius: RadiusOption;
   onRadiusChange: (radius: RadiusOption) => void;
   onLocateMe: () => void;
-  onSearchPlace: (query: string) => void;
   hasCenter: boolean;
-  searching?: boolean;
+  cities: string[];
+  city: string | null;
+  onCityChange: (city: string | null) => void;
   ages: string[];
   onToggleAge: (id: string) => void;
   categories: string[];
@@ -91,9 +103,10 @@ export default function ActivityFilters({
   radius,
   onRadiusChange,
   onLocateMe,
-  onSearchPlace,
   hasCenter,
-  searching,
+  cities,
+  city,
+  onCityChange,
   ages,
   onToggleAge,
   categories,
@@ -102,13 +115,24 @@ export default function ActivityFilters({
   onWhenChange,
   count,
 }: Props) {
-  const [query, setQuery] = useState("");
+  const [cityQuery, setCityQuery] = useState("");
+  const [cityPopoverOpen, setCityPopoverOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const mobileTriggerRef = useRef<HTMLButtonElement>(null);
   const drawerContentRef = useRef<HTMLDivElement>(null);
 
+  const citySuggestions = useMemo(() => {
+    const q = normalizeText(cityQuery.trim());
+    if (!q) return cities;
+    return cities.filter((c) => normalizeText(c).includes(q));
+  }, [cities, cityQuery]);
+
   const activeFilterCount =
-    (radius !== null ? 1 : 0) + ages.length + categories.length + (when !== null ? 1 : 0);
+    (radius !== null ? 1 : 0) +
+    ages.length +
+    categories.length +
+    (when !== null ? 1 : 0) +
+    (city !== null ? 1 : 0);
 
   const filterGroups = (
     <>
@@ -139,27 +163,63 @@ export default function ActivityFilters({
             Limpar
           </button>
         )}
-        <form
-          className="flex min-w-[200px] flex-1 items-center gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (query.trim()) onSearchPlace(query.trim());
-          }}
-        >
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar cidade ou endereço"
-            className="w-full rounded-full border border-border bg-background px-3 py-1.5 text-sm outline-none focus:border-primary"
-          />
+        <Popover open={cityPopoverOpen} onOpenChange={setCityPopoverOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              role="combobox"
+              aria-expanded={cityPopoverOpen}
+              className="flex min-w-[200px] flex-1 items-center justify-between gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-sm outline-none focus:border-primary"
+            >
+              <span className={city ? "text-foreground" : "text-muted-foreground"}>
+                {city ?? "Buscar cidade"}
+              </span>
+              <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[240px] p-0" align="start">
+            <Command shouldFilter={false}>
+              <CommandInput
+                placeholder="Buscar cidade..."
+                value={cityQuery}
+                onValueChange={setCityQuery}
+              />
+              <CommandList>
+                <CommandEmpty>Nenhuma cidade encontrada.</CommandEmpty>
+                <CommandGroup>
+                  {citySuggestions.map((c) => (
+                    <CommandItem
+                      key={c}
+                      value={c}
+                      onSelect={() => {
+                        onCityChange(c);
+                        setCityQuery("");
+                        setCityPopoverOpen(false);
+                      }}
+                    >
+                      <Check
+                        className={cn("h-4 w-4", city === c ? "opacity-100" : "opacity-0")}
+                      />
+                      {c}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+        {city !== null && (
           <button
-            type="submit"
-            disabled={searching}
-            className="rounded-full border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50"
+            type="button"
+            onClick={() => {
+              onCityChange(null);
+              setCityQuery("");
+            }}
+            className="rounded-full px-3 py-1.5 text-sm text-muted-foreground underline"
           >
-            {searching ? "..." : "Buscar"}
+            Limpar
           </button>
-        </form>
+        )}
       </Group>
 
       <Group title="Idade">

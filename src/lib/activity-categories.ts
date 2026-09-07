@@ -74,6 +74,7 @@ export type MapActivity = {
   schedule_info: string | null;
   languages: string[] | null;
   entry_type: string;
+  city: string | null;
 };
 
 export const LUXEMBOURG_CENTER: [number, number] = [49.6116, 6.1319];

@@ -16,12 +16,12 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 // Bridge them here, but only when the VITE_-prefixed name isn't already set, so this never
 // overrides a correctly configured value (e.g. once Vercel gets its own VITE_ vars, this becomes a no-op).
 const envBridge: Record<string, string> = {};
-if (!process.env.VITE_SUPABASE_URL && process.env.SUPABASE_URL) {
-  envBridge["import.meta.env.VITE_SUPABASE_URL"] = JSON.stringify(process.env.SUPABASE_URL);
+if (!process.env["VITE_SUPABASE_URL"] && process.env["SUPABASE_URL"]) {
+  envBridge["import.meta.env.VITE_SUPABASE_URL"] = JSON.stringify(process.env["SUPABASE_URL"]);
 }
-if (!process.env.VITE_SUPABASE_PUBLISHABLE_KEY && process.env.SUPABASE_PUBLISHABLE_KEY) {
+if (!process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] && process.env["SUPABASE_PUBLISHABLE_KEY"]) {
   envBridge["import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY"] = JSON.stringify(
-    process.env.SUPABASE_PUBLISHABLE_KEY,
+    process.env["SUPABASE_PUBLISHABLE_KEY"],
   );
 }
 
