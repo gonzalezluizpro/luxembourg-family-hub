@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Map as LeafletMap, Marker } from "leaflet";
 import L from "leaflet";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import ActivityCard from "@/components/ActivityCard";
 import ActivityFilters, { type RadiusOption } from "@/components/ActivityFilters";
@@ -86,6 +86,15 @@ function filterActivities(
   });
 }
 
+function parseList(value: string | undefined): string[] {
+  if (!value) return [];
+  return value.split(",").filter(Boolean);
+}
+
+function serializeList(values: string[]): string | undefined {
+  return values.length > 0 ? values.join(",") : undefined;
+}
+
 function escapeHtml(value: string) {
   return value.replace(
     /[&<>"']/g,
@@ -105,31 +114,60 @@ function distanceKm(a: [number, number], b: [number, number]) {
 }
 
 export default function ActivityMap() {
-  const navigate = useNavigate();
+  // The URL is the source of truth for filters + map view, so they survive
+  // navigating to an activity's detail page and back (including the browser's
+  // back button) instead of resetting to defaults on remount.
+  const search = useSearch({ from: "/explorar" });
+  const navigate = useNavigate({ from: "/explorar" });
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const markersRef = useRef<Marker[]>([]);
   const [activities, setActivities] = useState<MapActivity[]>([]);
   const [status, setStatus] = useState<string | null>(null);
-  const [center, setCenter] = useState<[number, number]>(LUXEMBOURG_CENTER);
-  const [radius, setRadius] = useState<RadiusOption>(null);
-  const [ages, setAges] = useState<string[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [when, setWhen] = useState<string | null>(null);
-  const [city, setCity] = useState<string | null>(null);
+  const [center, setCenter] = useState<[number, number]>(() =>
+    search.lat !== undefined && search.lng !== undefined
+      ? [search.lat, search.lng]
+      : LUXEMBOURG_CENTER,
+  );
+  const radius = (search.radius ?? null) as RadiusOption;
+  const ages = useMemo(() => parseList(search.age), [search.age]);
+  const categories = useMemo(() => parseList(search.type), [search.type]);
+  const when = search.when ?? null;
+  const city = search.city ?? null;
 
   useEffect(() => {
     if (mapRef.current || !containerRef.current) return;
-    const map = L.map(containerRef.current).setView(LUXEMBOURG_CENTER, 11);
+    // Read once at mount time — a fresh mount (e.g. after navigating back
+    // from a detail page) already reflects the restored URL.
+    const initialCenter: [number, number] =
+      search.lat !== undefined && search.lng !== undefined
+        ? [search.lat, search.lng]
+        : LUXEMBOURG_CENTER;
+    const initialZoom = search.zoom ?? 11;
+    const map = L.map(containerRef.current).setView(initialCenter, initialZoom);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; OpenStreetMap",
       maxZoom: 19,
     }).addTo(map);
     mapRef.current = map;
+
+    let zoomSyncTimeout: ReturnType<typeof setTimeout> | undefined;
+    const syncZoom = () => {
+      clearTimeout(zoomSyncTimeout);
+      zoomSyncTimeout = setTimeout(() => {
+        const zoom = map.getZoom();
+        navigate({ search: (prev) => ({ ...prev, zoom }), replace: true });
+      }, 400);
+    };
+    map.on("zoomend", syncZoom);
+
     return () => {
+      clearTimeout(zoomSyncTimeout);
+      map.off("zoomend", syncZoom);
       map.remove();
       mapRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -168,33 +206,37 @@ export default function ActivityMap() {
 
   const toggleAge = (id: string) => {
     if (!ages.includes(id)) trackEvent("filter_applied", { filter_type: "age", filter_value: id });
-    setAges((prev) => (prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]));
+    const next = ages.includes(id) ? ages.filter((a) => a !== id) : [...ages, id];
+    navigate({ search: (prev) => ({ ...prev, age: serializeList(next) }), replace: true });
   };
 
   const toggleCategory = (id: string) => {
     if (!categories.includes(id)) {
       trackEvent("filter_applied", { filter_type: "type", filter_value: id });
     }
-    setCategories((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
+    const next = categories.includes(id)
+      ? categories.filter((c) => c !== id)
+      : [...categories, id];
+    navigate({ search: (prev) => ({ ...prev, type: serializeList(next) }), replace: true });
   };
 
   const handleRadiusChange = (value: RadiusOption) => {
     if (value !== null) {
       trackEvent("filter_applied", { filter_type: "location", filter_value: `${value}km` });
     }
-    setRadius(value);
+    navigate({ search: (prev) => ({ ...prev, radius: value ?? undefined }), replace: true });
   };
 
   const handleWhenChange = (value: string | null) => {
     if (value !== null) trackEvent("filter_applied", { filter_type: "when", filter_value: value });
-    setWhen(value);
+    navigate({ search: (prev) => ({ ...prev, when: value ?? undefined }), replace: true });
   };
 
   const handleCityChange = (value: string | null) => {
     if (value !== null) {
       trackEvent("filter_applied", { filter_type: "location", filter_value: "city" });
     }
-    setCity(value);
+    navigate({ search: (prev) => ({ ...prev, city: value ?? undefined }), replace: true });
   };
 
   useEffect(() => {
@@ -231,6 +273,10 @@ export default function ActivityMap() {
         setCenter(point);
         mapRef.current?.setView(point, 13);
         setStatus(null);
+        navigate({
+          search: (prev) => ({ ...prev, lat: point[0], lng: point[1], zoom: 13 }),
+          replace: true,
+        });
       },
       () => setStatus("Não conseguimos acessar sua localização."),
     );
