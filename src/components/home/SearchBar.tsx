@@ -42,7 +42,7 @@ function SegmentButton({ label, value }: { label: string; value: string }) {
     <PopoverTrigger asChild>
       <button
         type="button"
-        className="flex min-w-[132px] flex-col items-start rounded-full px-4 py-2 text-left transition-colors hover:bg-muted"
+        className="flex min-w-[132px] shrink-0 flex-col items-start rounded-full px-4 py-2 text-left transition-colors hover:bg-muted"
       >
         <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           {label}
@@ -101,19 +101,22 @@ export default function SearchBar({
     (radius !== null ? 1 : 0) + ages.length + (when !== null ? 1 : 0) + (city !== null ? 1 : 0);
 
   return (
-    <div className="border-b border-border bg-card px-4 py-3">
-      <div className="flex flex-wrap items-center gap-1 rounded-full border border-border bg-background p-1 shadow-sm md:inline-flex md:w-auto">
+    <div className="border-b border-border bg-card px-4 py-3 sm:px-6 sm:py-4">
+      {/* overflow-x-auto instead of flex-wrap: on narrow viewports this keeps
+          the rounded-full pill shape intact as a single scrollable row —
+          wrapping it to multiple lines breaks the pill's rounded corners. */}
+      <div className="flex items-center gap-1 overflow-x-auto rounded-full border border-border bg-background p-1 shadow-sm md:inline-flex md:w-auto md:overflow-visible">
         {/* CityCombobox manages its own Popover internally (the input doubles
             as its anchor), so it isn't wrapped in one here like the other
             segments. */}
-        <div className="flex min-w-[180px] flex-1 flex-col px-3 py-1">
+        <div className="flex w-[200px] shrink-0 flex-col px-3 py-1 md:w-auto md:min-w-[180px] md:flex-1">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Comuna
           </span>
           <CityCombobox cities={cities} city={city} onCityChange={onCityChange} />
         </div>
 
-        <div className="hidden h-8 w-px bg-border md:block" />
+        <div className="h-8 w-px shrink-0 bg-border" />
 
         <Popover open={ageOpen} onOpenChange={setAgeOpen}>
           <SegmentButton label="Faixa etária" value={ageLabel} />
@@ -131,7 +134,7 @@ export default function SearchBar({
           </PopoverContent>
         </Popover>
 
-        <div className="hidden h-8 w-px bg-border md:block" />
+        <div className="h-8 w-px shrink-0 bg-border" />
 
         <Popover open={whenOpen} onOpenChange={setWhenOpen}>
           <SegmentButton label="Data" value={whenLabel} />

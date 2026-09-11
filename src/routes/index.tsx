@@ -1,5 +1,6 @@
 import { createFileRoute, ClientOnly, Link } from "@tanstack/react-router";
 import { Suspense, lazy, useEffect } from "react";
+import { HandHeart } from "lucide-react";
 import { z } from "zod";
 import CategoryRail from "@/components/home/CategoryRail";
 import FloatingMapToggle from "@/components/home/FloatingMapToggle";
@@ -99,13 +100,20 @@ function Home() {
     <main className="flex h-screen flex-col">
       <h1 className="sr-only">Atividades para famílias em Luxemburgo</h1>
 
-      <div className="flex items-center justify-between gap-3 border-b border-border bg-card px-4 pt-3">
-        <span className="text-lg font-bold text-foreground">FamilyLoop</span>
+      <div className="flex items-center justify-between gap-3 border-b border-border bg-card px-4 py-3 sm:px-6 sm:py-4">
+        <div className="flex items-center gap-2">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary text-sm font-bold text-primary-foreground">
+            F
+          </span>
+          <span className="text-lg font-bold tracking-tight text-foreground">FamilyLoop</span>
+        </div>
         <Link
           to="/ajuda"
-          className="rounded-full border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted"
+          className="flex shrink-0 items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:border-primary/30 hover:bg-primary/15 sm:px-4"
         >
-          Preciso de ajuda / Posso ajudar
+          <HandHeart className="h-4 w-4 shrink-0" />
+          <span className="hidden sm:inline">Preciso de ajuda / Posso ajudar</span>
+          <span className="sm:hidden">Ajuda mútua</span>
         </Link>
       </div>
 
