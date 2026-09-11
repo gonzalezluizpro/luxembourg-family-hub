@@ -1,4 +1,9 @@
-const GA_MEASUREMENT_ID = "G-53NN631J17";
+// Same access pattern as src/integrations/supabase/client.ts: Vercel sets
+// GA_MEASUREMENT_ID without the VITE_ prefix, so import.meta.env (client
+// bundle) only sees it via the vite.config.ts define bridge; process.env
+// covers SSR/build. The hardcoded ID is a safety net, not the primary source.
+const GA_MEASUREMENT_ID =
+  import.meta.env["VITE_GA_MEASUREMENT_ID"] || process.env["GA_MEASUREMENT_ID"] || "G-53NN631J17";
 const CONSENT_STORAGE_KEY = "familyloop:analytics-consent";
 
 export type ConsentState = "granted" | "denied";

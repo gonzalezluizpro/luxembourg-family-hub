@@ -24,6 +24,11 @@ if (!process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] && process.env["SUPABASE_PUBLI
     process.env["SUPABASE_PUBLISHABLE_KEY"],
   );
 }
+if (!process.env["VITE_GA_MEASUREMENT_ID"] && process.env["GA_MEASUREMENT_ID"]) {
+  envBridge["import.meta.env.VITE_GA_MEASUREMENT_ID"] = JSON.stringify(
+    process.env["GA_MEASUREMENT_ID"],
+  );
+}
 
 export default defineConfig({
   vite: { define: envBridge },
