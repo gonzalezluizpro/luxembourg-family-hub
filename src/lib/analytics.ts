@@ -43,6 +43,9 @@ function loadGoogleAnalytics() {
   if (!isBrowser() || gaLoaded) return;
   gaLoaded = true;
 
+  // TEMP DEBUG — remove after confirming GA_MEASUREMENT_ID at injection time
+  console.log("[analytics] loadGoogleAnalytics: GA_MEASUREMENT_ID =", GA_MEASUREMENT_ID);
+
   const script = document.createElement("script");
   script.async = true;
   script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
@@ -52,6 +55,8 @@ function loadGoogleAnalytics() {
   window.gtag = function gtag(...args: unknown[]) {
     window.dataLayer.push(args);
   };
+  // TEMP DEBUG — remove after confirming window.gtag gets defined
+  console.log("[analytics] window.gtag defined:", typeof window.gtag === "function");
   // We fire page_view manually (see trackEvent callers) since this is a
   // client-routed SPA — the automatic pageview tied to script load would
   // only ever fire once, for whichever route happened to be active then.
@@ -72,6 +77,8 @@ export function applyConsent(consent: ConsentState) {
 
 /** Centralized event tracking — a no-op until the user has granted consent. */
 export function trackEvent(eventName: string, params?: Record<string, string | number | boolean>) {
+  // TEMP DEBUG — remove after confirming gaLoaded / stored consent at call time
+  console.log("[analytics] trackEvent:", eventName, "gaLoaded =", gaLoaded, "storedConsent =", getStoredConsent());
   if (!isBrowser() || !gaLoaded || typeof window.gtag !== "function") return;
   window.gtag("event", eventName, params);
 }
