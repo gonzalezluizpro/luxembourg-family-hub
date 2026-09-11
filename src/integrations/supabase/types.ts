@@ -100,6 +100,45 @@ export type Database = {
           },
         ]
       }
+      requests: {
+        Row: {
+          category: string
+          commune: string
+          contact_email: string | null
+          contact_name: string
+          contact_phone: string | null
+          created_at: string
+          description: string
+          id: string
+          type: string
+          when_needed: string | null
+        }
+        Insert: {
+          category: string
+          commune: string
+          contact_email?: string | null
+          contact_name: string
+          contact_phone?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          type: string
+          when_needed?: string | null
+        }
+        Update: {
+          category?: string
+          commune?: string
+          contact_email?: string | null
+          contact_name?: string
+          contact_phone?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          type?: string
+          when_needed?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

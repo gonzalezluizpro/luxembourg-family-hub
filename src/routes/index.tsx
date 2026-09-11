@@ -1,6 +1,34 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, ClientOnly, Link } from "@tanstack/react-router";
+import { Suspense, lazy, useEffect } from "react";
+import { z } from "zod";
+import CategoryRail from "@/components/home/CategoryRail";
+import FloatingMapToggle from "@/components/home/FloatingMapToggle";
+import SearchBar from "@/components/home/SearchBar";
+import ActivityGrid from "@/components/home/ActivityGrid";
+import { useExploreState } from "@/hooks/use-explore-state";
+import { trackEvent } from "@/lib/analytics";
+
+const ActivityMap = lazy(() => import("@/components/ActivityMap"));
+
+// Filter/map state lives in the URL so it survives navigating to an
+// activity's detail page and back (including the browser's back button).
+// `age`/`type` are comma-separated lists (e.g. "4-6,7-9") to keep the URL
+// readable. `view` toggles between the activity grid and the map — they're
+// never shown at the same time (see FloatingMapToggle).
+export const homeSearchSchema = z.object({
+  city: z.string().optional(),
+  age: z.string().optional(),
+  type: z.string().optional(),
+  when: z.string().optional(),
+  radius: z.union([z.literal(5), z.literal(10), z.literal(20)]).optional(),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
+  zoom: z.number().optional(),
+  view: z.enum(["grid", "map"]).optional(),
+});
 
 export const Route = createFileRoute("/")({
+  validateSearch: homeSearchSchema,
   head: () => ({
     meta: [
       { title: "FamilyLoop Luxembourg — Atividades para famílias" },
@@ -21,29 +49,106 @@ export const Route = createFileRoute("/")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [
+      {
+        rel: "stylesheet",
+        href: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
+      },
+    ],
   }),
-  component: Index,
+  component: Home,
 });
 
-function Index() {
+function MapSkeleton() {
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-6 text-center">
-      <div className="absolute inset-0 -z-10 bg-gradient-to-br from-hero-from via-background to-hero-to opacity-80" />
-      <div className="mx-auto max-w-2xl space-y-8">
-        <h1 className="text-balance text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-          O que fazer com seus filhos perto de você?
-        </h1>
-        <p className="text-balance text-lg text-muted-foreground sm:text-xl">
-          Encontre atividades, clubes, eventos, parques e lugares para famílias
-          em Luxemburgo
-        </p>
+    <div className="flex h-full w-full items-center justify-center bg-muted">
+      <p className="text-sm text-muted-foreground">Carregando o mapa...</p>
+    </div>
+  );
+}
+
+function Home() {
+  const {
+    visible,
+    cities,
+    center,
+    status,
+    radius,
+    ages,
+    categories,
+    when,
+    city,
+    view,
+    search,
+    toggleAge,
+    toggleCategory,
+    handleRadiusChange,
+    handleWhenChange,
+    handleCityChange,
+    handleClearFilters,
+    toggleView,
+    locateMe,
+    setZoomInUrl,
+  } = useExploreState();
+
+  useEffect(() => {
+    trackEvent("page_view", { page_path: "/" });
+  }, []);
+
+  return (
+    <main className="flex h-screen flex-col">
+      <h1 className="sr-only">Atividades para famílias em Luxemburgo</h1>
+
+      <div className="flex items-center justify-between gap-3 border-b border-border bg-card px-4 pt-3">
+        <span className="text-lg font-bold text-foreground">FamilyLoop</span>
         <Link
-          to="/explorar"
-          className="inline-flex items-center gap-2 rounded-full bg-primary px-8 py-4 text-lg font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-transform hover:scale-105 active:scale-95"
+          to="/ajuda"
+          className="rounded-full border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted"
         >
-          <span aria-hidden>📍</span>
-          Explorar perto de mim
+          Preciso de ajuda / Posso ajudar
         </Link>
+      </div>
+
+      <SearchBar
+        cities={cities}
+        city={city}
+        onCityChange={handleCityChange}
+        radius={radius}
+        onRadiusChange={handleRadiusChange}
+        onLocateMe={locateMe}
+        ages={ages}
+        onToggleAge={toggleAge}
+        when={when}
+        onWhenChange={handleWhenChange}
+        onClearFilters={handleClearFilters}
+        count={visible.length}
+      />
+      <CategoryRail categories={categories} onToggleCategory={toggleCategory} />
+
+      {/* min-h-0: without it, this flex item defaults to min-height:auto and
+          grows to fit its content instead of respecting the height h-screen
+          gives it, which lets the whole page scroll instead of just the
+          grid/map area. */}
+      <div className="relative min-h-0 flex-1">
+        {view === "map" ? (
+          <ClientOnly fallback={<MapSkeleton />}>
+            <Suspense fallback={<MapSkeleton />}>
+              <ActivityMap
+                activities={visible}
+                center={center}
+                city={city}
+                initialZoom={search.zoom ?? 11}
+                onZoomChange={setZoomInUrl}
+                status={status}
+              />
+            </Suspense>
+          </ClientOnly>
+        ) : (
+          <div className="h-full overflow-y-auto">
+            <ActivityGrid activities={visible} center={center} />
+          </div>
+        )}
+        <FloatingMapToggle view={view} onToggle={toggleView} />
       </div>
     </main>
   );

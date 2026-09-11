@@ -119,11 +119,11 @@ function AtividadeDetail() {
   return (
     <main className="mx-auto min-h-screen max-w-2xl bg-background px-4 py-6">
       <Link
-        to="/explorar"
+        to="/"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
-        Voltar para o mapa
+        Voltar
       </Link>
 
       <div className="mt-4 flex items-start justify-between gap-3">

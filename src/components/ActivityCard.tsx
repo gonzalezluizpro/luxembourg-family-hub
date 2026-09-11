@@ -27,7 +27,7 @@ export default function ActivityCard({ activity, distanceKm }: ActivityCardProps
       <Link
         to="/atividade/$id"
         params={{ id: activity.id }}
-        onClick={() => trackEvent("activity_card_click", { activity_name: activity.name })}
+        onClick={() => trackEvent("card_clicked", { activity_name: activity.name })}
         className="block transition-colors hover:opacity-80"
       >
         <div className="flex items-start justify-between gap-2">

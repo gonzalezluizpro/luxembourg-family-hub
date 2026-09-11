@@ -10,12 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AjudaRouteImport } from './routes/ajuda'
 import { Route as ExplorarRouteImport } from './routes/explorar'
 import { Route as AtividadeIdRouteImport } from './routes/atividade.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AjudaRoute = AjudaRouteImport.update({
+  id: '/ajuda',
+  path: '/ajuda',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExplorarRoute = ExplorarRouteImport.update({
@@ -31,30 +37,34 @@ const AtividadeIdRoute = AtividadeIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/ajuda': typeof AjudaRoute
   '/explorar': typeof ExplorarRoute
   '/atividade/$id': typeof AtividadeIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/ajuda': typeof AjudaRoute
   '/explorar': typeof ExplorarRoute
   '/atividade/$id': typeof AtividadeIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/ajuda': typeof AjudaRoute
   '/explorar': typeof ExplorarRoute
   '/atividade/$id': typeof AtividadeIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/explorar' | '/atividade/$id'
+  fullPaths: '/' | '/ajuda' | '/explorar' | '/atividade/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/explorar' | '/atividade/$id'
-  id: '__root__' | '/' | '/explorar' | '/atividade/$id'
+  to: '/' | '/ajuda' | '/explorar' | '/atividade/$id'
+  id: '__root__' | '/' | '/ajuda' | '/explorar' | '/atividade/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AjudaRoute: typeof AjudaRoute
   ExplorarRoute: typeof ExplorarRoute
   AtividadeIdRoute: typeof AtividadeIdRoute
 }
@@ -66,6 +76,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ajuda': {
+      id: '/ajuda'
+      path: '/ajuda'
+      fullPath: '/ajuda'
+      preLoaderRoute: typeof AjudaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/explorar': {
@@ -87,6 +104,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AjudaRoute: AjudaRoute,
   ExplorarRoute: ExplorarRoute,
   AtividadeIdRoute: AtividadeIdRoute,
 }
