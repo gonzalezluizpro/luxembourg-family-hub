@@ -1,18 +1,29 @@
-// Same access pattern as src/integrations/supabase/client.ts: Vercel sets
-// GA_MEASUREMENT_ID without the VITE_ prefix, so import.meta.env (client
-// bundle) only sees it via the vite.config.ts define bridge; process.env
-// covers SSR/build. The hardcoded ID is a safety net, not the primary source.
-const GA_MEASUREMENT_ID =
-  import.meta.env["VITE_GA_MEASUREMENT_ID"] || process.env["GA_MEASUREMENT_ID"] || "G-53NN631J17";
-const CONSENT_STORAGE_KEY = "familyloop:analytics-consent";
+import posthog from "posthog-js";
+
+// Same access pattern as src/integrations/supabase/client.ts: the key is set as
+// POSTHOG_API_KEY (no VITE_ prefix) both in .env.local and on Vercel, so it only
+// reaches the client bundle through the vite.config.ts define bridge;
+// process.env covers SSR/build. Missing key => every export below is a no-op,
+// so a deploy without the var degrades silently instead of breaking the app.
+const POSTHOG_API_KEY = resolveKey();
+
+const POSTHOG_API_HOST = "https://eu.posthog.com";
+
+// Bumped from the GA-era key on purpose: consent granted for Google Analytics
+// doesn't carry over to a different processor, so returning visitors are asked
+// once more. Drop the ":v2" suffix if you'd rather keep the old grants.
+const CONSENT_STORAGE_KEY = "familyloop:analytics-consent:v2";
 
 export type ConsentState = "granted" | "denied";
 
-declare global {
-  interface Window {
-    dataLayer: unknown[];
-    gtag: (...args: unknown[]) => void;
+function resolveKey(): string {
+  const injected = import.meta.env["POSTHOG_API_KEY"];
+  if (typeof injected === "string" && injected !== "") return injected;
+  if (typeof process !== "undefined") {
+    const fromNode = process.env?.["POSTHOG_API_KEY"];
+    if (typeof fromNode === "string" && fromNode !== "") return fromNode;
   }
+  return "";
 }
 
 function isBrowser() {
@@ -37,48 +48,48 @@ function persistConsent(consent: ConsentState) {
   }
 }
 
-let gaLoaded = false;
+let posthogLoaded = false;
 
-function loadGoogleAnalytics() {
-  if (!isBrowser() || gaLoaded) return;
-  gaLoaded = true;
+function loadPostHog() {
+  if (!isBrowser() || posthogLoaded || POSTHOG_API_KEY === "") return;
+  posthogLoaded = true;
 
-  // TEMP DEBUG — remove after confirming GA_MEASUREMENT_ID at injection time
-  console.log("[analytics] loadGoogleAnalytics: GA_MEASUREMENT_ID =", GA_MEASUREMENT_ID);
-
-  const script = document.createElement("script");
-  script.async = true;
-  script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
-  document.head.appendChild(script);
-
-  window.dataLayer = window.dataLayer || [];
-  window.gtag = function gtag(...args: unknown[]) {
-    window.dataLayer.push(args);
-  };
-  // TEMP DEBUG — remove after confirming window.gtag gets defined
-  console.log("[analytics] window.gtag defined:", typeof window.gtag === "function");
-  // We fire page_view manually (see trackEvent callers) since this is a
-  // client-routed SPA — the automatic pageview tied to script load would
-  // only ever fire once, for whichever route happened to be active then.
-  window.gtag("js", new Date());
-  window.gtag("config", GA_MEASUREMENT_ID, { send_page_view: false });
+  posthog.init(POSTHOG_API_KEY, {
+    api_host: POSTHOG_API_HOST,
+    // Pinned so a posthog-js upgrade can't silently turn new capture
+    // behaviour on; bump deliberately after reading their changelog.
+    defaults: "2025-05-24",
+    // No cookies — the distinct_id lives in localStorage. Still device
+    // storage under ePrivacy, which is why init only runs after consent.
+    persistence: "localStorage",
+    // Parity with the GA setup: only the events trackEvent() sends
+    // explicitly, nothing scraped from clicks or replayed sessions.
+    autocapture: false,
+    disable_session_recording: true,
+    // The GA build had to fire page_view by hand because gtag's automatic
+    // pageview fires once per script load, which is wrong in a client-routed
+    // SPA. PostHog handles that natively by listening to history changes, so
+    // $pageview stays correct across route transitions. The explicit
+    // trackEvent("page_view") call in src/routes/index.tsx is untouched and
+    // still arrives as its own custom event.
+    capture_pageview: "history_change",
+    capture_pageleave: true,
+  });
 }
 
 /** Called once at app start to restore a previously granted consent. */
 export function initAnalyticsFromStoredConsent() {
-  if (getStoredConsent() === "granted") loadGoogleAnalytics();
+  if (getStoredConsent() === "granted") loadPostHog();
 }
 
-/** Called from the cookie banner when the user makes a choice. */
+/** Called from the consent banner when the user makes a choice. */
 export function applyConsent(consent: ConsentState) {
   persistConsent(consent);
-  if (consent === "granted") loadGoogleAnalytics();
+  if (consent === "granted") loadPostHog();
 }
 
 /** Centralized event tracking — a no-op until the user has granted consent. */
 export function trackEvent(eventName: string, params?: Record<string, string | number | boolean>) {
-  // TEMP DEBUG — remove after confirming gaLoaded / stored consent at call time
-  console.log("[analytics] trackEvent:", eventName, "gaLoaded =", gaLoaded, "storedConsent =", getStoredConsent());
-  if (!isBrowser() || !gaLoaded || typeof window.gtag !== "function") return;
-  window.gtag("event", eventName, params);
+  if (!isBrowser() || !posthogLoaded) return;
+  posthog.capture(eventName, params);
 }

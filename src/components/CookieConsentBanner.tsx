@@ -15,7 +15,8 @@ export default function CookieConsentBanner() {
     <div className="fixed inset-x-0 bottom-0 z-[1100] border-t border-border bg-card px-4 py-3 shadow-lg">
       <div className="mx-auto flex max-w-3xl flex-col items-center justify-between gap-3 sm:flex-row">
         <p className="text-sm text-muted-foreground">
-          Usamos cookies de analytics para entender como o site é usado e melhorar sua experiência.
+          Usamos analytics para entender como o site é usado e melhorar sua experiência. Sem cookies
+          — guardamos apenas um identificador anónimo no seu navegador.
         </p>
         <div className="flex shrink-0 gap-2">
           <button
