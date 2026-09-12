@@ -109,7 +109,7 @@ function Home() {
         </div>
         <Link
           to="/ajuda"
-          className="flex shrink-0 items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:border-primary/30 hover:bg-primary/15 sm:px-4"
+          className="flex shrink-0 items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/10 px-3 py-2 text-sm font-medium text-primary transition-colors hover:border-primary/30 hover:bg-primary/15 sm:px-4"
         >
           <HandHeart className="h-4 w-4 shrink-0" />
           <span className="hidden sm:inline">Preciso de ajuda / Posso ajudar</span>

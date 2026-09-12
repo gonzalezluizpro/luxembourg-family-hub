@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, Search } from "lucide-react";
+import { Check, Search, X } from "lucide-react";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { normalizeText } from "@/lib/text";
 import { cn } from "@/lib/utils";
@@ -19,13 +19,20 @@ export default function CityCombobox({
   cities,
   city,
   onCityChange,
+  variant = "field",
 }: {
   cities: string[];
   city: string | null;
   onCityChange: (city: string | null) => void;
+  // "field": a self-contained bordered input with a search icon, for the
+  // mobile bar where it stands alone. "segment": borderless and icon-less so
+  // it reads as one cell of the desktop segmented bar, its text aligned under
+  // the segment's own "Comuna" label rather than behind a nested box.
+  variant?: "field" | "segment";
 }) {
   const [query, setQuery] = useState(city ?? "");
   const [open, setOpen] = useState(false);
+  const isSegment = variant === "segment";
 
   // Reflects external changes (e.g. a top-level "Limpar filtros" button)
   // while this stays mounted — but not while the user is actively editing.
@@ -61,8 +68,10 @@ export default function CityCombobox({
         modal
       >
         <PopoverAnchor asChild>
-          <div className="relative min-w-[200px] flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <div className="relative w-full">
+            {!isSegment && (
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            )}
             <input
               type="text"
               role="combobox"
@@ -84,12 +93,35 @@ export default function CityCombobox({
                 }
               }}
               placeholder="Buscar comuna"
-              className="w-full rounded-full border border-border bg-background py-1.5 pl-9 pr-3 text-sm outline-none focus:border-primary"
+              className={cn(
+                "w-full text-sm outline-none transition-colors",
+                isSegment
+                  ? "border-0 bg-transparent p-0 font-medium text-foreground placeholder:font-normal placeholder:text-muted-foreground"
+                  : "rounded-lg border border-border bg-background py-2 pl-9 focus:border-primary",
+                city !== null && (isSegment ? "pr-6" : "pr-9"),
+                city === null && !isSegment && "pr-3",
+              )}
             />
+            {city !== null && (
+              <button
+                type="button"
+                aria-label="Limpar comuna"
+                onClick={() => {
+                  onCityChange(null);
+                  setQuery("");
+                }}
+                className={cn(
+                  "absolute top-1/2 flex -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                  isSegment ? "right-0 h-5 w-5" : "right-1.5 h-6 w-6",
+                )}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
         </PopoverAnchor>
         <PopoverContent
-          className="z-[1300] w-[240px] p-1 shadow-lg"
+          className="z-[1300] w-[240px] rounded-lg p-1 shadow-lg"
           align="start"
           sideOffset={6}
           onOpenAutoFocus={(e) => e.preventDefault()}
@@ -107,7 +139,7 @@ export default function CityCombobox({
                   role="option"
                   aria-selected={city === c}
                   onClick={() => selectCity(c)}
-                  className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground"
                 >
                   <Check className={cn("h-4 w-4 shrink-0", city === c ? "opacity-100" : "opacity-0")} />
                   {c}
@@ -117,18 +149,6 @@ export default function CityCombobox({
           )}
         </PopoverContent>
       </Popover>
-      {city !== null && (
-        <button
-          type="button"
-          onClick={() => {
-            onCityChange(null);
-            setQuery("");
-          }}
-          className="rounded-full px-3 py-1.5 text-sm text-muted-foreground underline"
-        >
-          Limpar
-        </button>
-      )}
     </>
   );
 }
